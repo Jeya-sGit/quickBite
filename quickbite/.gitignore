@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+quickbite/.env
+quickbite/.env.*
+!quickbite/.env.example
