@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.qb.quickbite.users.exception.EmailAlreadyExistsException;
+import com.qb.quickbite.users.exception.InvalidCredentialsException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -60,4 +61,21 @@ public class GlobalExceptionHandler {
             .status(HttpStatus.BAD_REQUEST)
             .body(response);
 }
+
+@ExceptionHandler(InvalidCredentialsException.class)
+public ResponseEntity<Map<String, Object>> handleInvalidCredentials(
+        InvalidCredentialsException ex) {
+
+    Map<String, Object> response = new LinkedHashMap<>();
+
+    response.put("timestamp", LocalDateTime.now());
+    response.put("status", HttpStatus.UNAUTHORIZED.value());
+    response.put("error", "Unauthorized");
+    response.put("message", ex.getMessage());
+
+    return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(response);
+}
+
 }
