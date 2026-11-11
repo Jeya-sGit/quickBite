@@ -8,6 +8,8 @@ import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
 
+import com.qb.quickbite.users.dto.LoginRequest;
+import com.qb.quickbite.users.dto.LoginResponse;
 import com.qb.quickbite.users.dto.UserRequest;
 import com.qb.quickbite.users.dto.UserResponse;
 import com.qb.quickbite.users.service.UserService;
@@ -33,4 +35,16 @@ public class UserController {
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> loginUser(
+            @Valid @RequestBody LoginRequest request) {
+
+        LoginResponse response = userService.loginUser(request);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
+    }
+    
 }
