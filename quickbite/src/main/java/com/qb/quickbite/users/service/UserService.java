@@ -2,6 +2,9 @@
 package com.qb.quickbite.users.service;
 
 import com.qb.quickbite.users.entity.User;
+import com.qb.quickbite.users.dto.LoginRequest;
+import com.qb.quickbite.users.dto.LoginResponse;
+import com.qb.quickbite.users.exception.InvalidCredentialsException;
 import com.qb.quickbite.users.dto.UserRequest;
 import com.qb.quickbite.users.dto.UserResponse;
 import com.qb.quickbite.users.exception.EmailAlreadyExistsException;
@@ -43,6 +46,25 @@ public UserResponse registerUser(UserRequest request) {
         savedUser.getName(),
         savedUser.getEmail(),
         savedUser.getPhone()
+    );
+}
+
+public LoginResponse loginUser(LoginRequest request) {
+
+    User user = userRepository.findByEmail(request.getEmail())
+            .orElseThrow(() ->
+                    new InvalidCredentialsException("Invalid email or password"));
+
+    if (!passwordEncoder.matches(
+            request.getPassword(), user.getPassword())) {
+        throw new InvalidCredentialsException("Invalid email or password");
+    }
+
+    return new LoginResponse(
+            user.getId(),
+            user.getName(),
+            user.getEmail(),
+            "Login successful"
     );
 }
 
