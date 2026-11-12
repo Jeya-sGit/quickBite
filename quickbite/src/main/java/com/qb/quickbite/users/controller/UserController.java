@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
-
+import org.springframework.security.core.Authentication;
 import jakarta.validation.Valid;
 
 import com.qb.quickbite.users.dto.LoginRequest;
@@ -46,5 +46,17 @@ public class UserController {
                 .status(HttpStatus.OK)
                 .body(response);
     }
+
+    
+@GetMapping("/profile")
+public ResponseEntity<UserResponse> getUserProfile(
+        Authentication authentication) {
+
+    UserResponse response =
+            userService.getUserProfile(authentication.getName());
+
+    return ResponseEntity.ok(response);
+}
+
     
 }
