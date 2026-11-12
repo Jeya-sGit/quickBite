@@ -2,187 +2,275 @@
 
 ## 1. Overview
 
-The User Management module handles user registration, login, user data persistence, input validation and password security.
+The User Management module handles customer registration, login, authentication and profile retrieval.
 
-It is responsible for managing user-related operations within the QuickBite application.
+It uses Spring Boot, Spring Data JPA, PostgreSQL, BCrypt password hashing and JWT-based authentication.
 
-## 2. Package Structure
+## 2. Features Implemented
+
+- Customer registration
+- Email uniqueness validation
+- Input validation
+- Password hashing using BCrypt
+- Customer login
+- Credential verification
+- JWT access token generation
+- JWT signature and expiration validation
+- Stateless authentication using Spring Security
+- Protected customer profile API
+- Centralized exception handling
+
+## 3. Package Structure
 
 ```text
-users
+com.qb.quickbite/
 │
-├── controller
-│   ├── UserController.java
-│   └── LoginController.java
+├── auth/
+│   ├── filter/
+│   │   └── JwtAuthenticationFilter.java
+│   │
+│   └── service/
+│       ├── JwtService.java
+│       └── CustomUserDetailsService.java
 │
-├── service
-│   └── UserService.java
+├── config/
+│   ├── SecurityConfig.java
+│   └── JwtProperties.java
 │
-├── repository
-│   └── UserRepository.java
+├── users/
+│   ├── controller/
+│   │   └── UserController.java
+│   │
+│   ├── service/
+│   │   └── UserService.java
+│   │
+│   ├── repository/
+│   │   └── UserRepository.java
+│   │
+│   ├── entity/
+│   │   └── User.java
+│   │
+│   ├── dto/
+│   │   ├── UserRequest.java
+│   │   ├── UserResponse.java
+│   │   ├── LoginRequest.java
+│   │   └── LoginResponse.java
+│   │
+│   └── exception/
+│       ├── EmailAlreadyExistsException.java
+│       └── InvalidCredentialsException.java
 │
-├── entity
-│   └── User.java
-│
-├── dto
-│   ├── UserRequest.java
-│   ├── UserResponse.java
-│   ├── LoginRequest.java
-│   └── LoginResponse.java
-│
-└── exception
-    ├── EmailAlreadyExistsException.java
-    └── InvalidCredentialsException.java
+└── global/
+    └── exception/
+        └── GlobalExceptionHandler.java
 ```
 
-### Package Responsibilities
+## 4. API Endpoints
 
-| Package | Responsibility |
-|---|---|
-| controller | Handles incoming HTTP requests and returns API responses. |
-| service | Contains user-related business logic. |
-| repository | Handles database operations using Spring Data JPA. |
-| entity | Defines the User database entity and its mapping. |
-| dto | Defines request and response objects for API communication. |
-| exception | Contains user-module-specific custom exceptions. |
-
-## 3. Available APIs
-
-### 3.1 User Registration
+### 4.1 Customer Registration
 
 **Endpoint:** `POST /service/users/register`
 
-**Purpose:** Registers a new user in QuickBite.
+**Access:** Public
 
-**Request Body:**
+Request body:
 
 ```json
 {
-  "name": "Jeya",
-  "email": "jeya@gmail.com",
-  "password": "Quickbite@123",
-  "phone": "9876543210"
+    "name": "Jeya",
+    "email": "jeya@gmail.com",
+    "password": "Jeya@12345",
+    "phone": "9876543210"
 }
 ```
 
-**Success Response:** `201 Created`
+Success response: `201 Created`
 
-Returns the newly created user's ID and profile details. Passwords are never included in the response.
+Registration validations:
+- Name is mandatory.
+- Email must have a valid format.
+- Only supported email providers are accepted.
+- Password must contain at least eight characters.
+- Password must contain uppercase, lowercase, numeric and special characters.
+- Password must not contain whitespace.
+- Duplicate email registration is rejected.
 
-### Registration HTTP Status Codes
+Passwords are stored as BCrypt hashes, never as plain text.
 
-| Status | Description |
-|---|---|
-| 201 | User registered successfully. |
-| 400 | Request validation failed. |
-| 409 | Email address already registered. |
-| 500 | Unexpected server error. |
-
-### 3.2 User Login
+### 4.2 Customer Login
 
 **Endpoint:** `POST /service/users/login`
 
-**Purpose:** Authenticates an existing user using their registered email and password.
+**Access:** Public
 
-**Request Body:**
-
-```json
-{
-  "email": "jeya@gmail.com",
-  "password": "Quickbite@123"
-}
-```
-
-**Success Response:** `200 OK`
+Request body:
 
 ```json
 {
-  "id": 1,
-  "name": "Jeya",
-  "email": "jeya@gmail.com",
-  "message": "Login successful"
+    "email": "jeya@gmail.com",
+    "password": "Jeya@12345"
 }
 ```
 
-### Login HTTP Status Codes
+Success response: `200 OK`
+
+Response:
+
+```json
+{
+    "id": 1,
+    "name": "Jeya",
+    "email": "jeya@gmail.com",
+    "message": "Login successful",
+    "accessToken": "<JWT_ACCESS_TOKEN>"
+}
+```
+
+Login functionality:
+- Verifies the registered email.
+- Compares the submitted password with the stored BCrypt hash.
+- Generates a JWT only after successful credential verification.
+- Returns the access token in the login response.
+- Uses the same generic error message for unknown email and incorrect password.
+
+### 4.3 Customer Profile
+
+**Endpoint:** `GET /service/users/profile`
+
+**Access:** Authenticated customers only.
+
+Authorization header:
+
+```http
+Authorization: Bearer <JWT_ACCESS_TOKEN>
+```
+
+Success response: `200 OK`
+
+```json
+{
+    "id": 1,
+    "name": "Jeya",
+    "email": "jeya@gmail.com",
+    "phone": "9876543210"
+}
+```
+
+The profile API retrieves the currently authenticated customer's details using the email extracted from Spring Security's authentication context.
+
+Password information is never returned.
+
+## 5. JWT Authentication Architecture
+
+### JWT Generation
+
+The JWT is generated after successful customer login.
+
+The token contains:
+- Subject: Customer email
+- Issued-at timestamp
+- Expiration timestamp
+- Cryptographic signature
+
+### JWT Validation
+
+The `JwtAuthenticationFilter`:
+1. Reads the Authorization header.
+2. Checks for the Bearer authentication scheme.
+3. Extracts the JWT.
+4. Validates its signature and expiration.
+5. Loads the customer using `CustomUserDetailsService`.
+6. Establishes authentication in Spring Security's SecurityContext.
+
+### Security Configuration
+
+`SecurityConfig.java` configures:
+
+- Stateless session management.
+- CSRF disabled for the stateless API configuration.
+- Public access to registration and login.
+- Authentication required for other endpoints.
+- JWT authentication filter integration.
+- HTTP 401 response for unauthenticated requests.
+
+### Token Configuration
+
+JWT configuration is maintained in `application.properties`.
+
+```properties
+jwt.secret=${JWT_SECRET}
+jwt.expiration=3600000
+```
+
+Token expiration: **1 hour**
+
+The signing secret is stored in the local `.env` file and must never be committed to Git.
+
+## 6. HTTP Status Codes
 
 | Status | Description |
 |---|---|
-| 200 | Login successful. |
-| 400 | Request validation failed. |
-| 401 | Invalid email or password. |
-| 500 | Unexpected server error. |
-
-## 4. Validation and Security
-
-### Registration
-
-- Name and email are mandatory.
-- Email format is validated.
-- Only configured personal email domains are accepted.
-- Password must contain at least 8 characters.
-- Password must contain at least one uppercase letter, one lowercase letter, one number and one special character.
-- Passwords containing spaces are rejected.
-- Duplicate email registration is prevented.
-- Passwords are hashed using BCrypt before database persistence.
-
-### Login
-
-- Email and password are mandatory.
-- Email format is validated.
-- Email containing spaces is rejected.
-- Password containing only whitespace is rejected.
-- Passwords are verified against stored BCrypt hashes using `PasswordEncoder.matches()`.
-- The same authentication error message is returned for unknown email addresses and incorrect passwords.
-- Passwords are never returned in API responses.
-- Password strength rules are not reapplied during login.
-
-## 5. Exception Handling
-
-User-specific exceptions are defined inside the `exception` package.
-
-Application-wide exception handling is implemented separately in:
-
-`com.qb.quickbite.global.exception.GlobalExceptionHandler`
-
-The global handler currently handles:
-
-- Duplicate email registration – HTTP 409.
-- Request validation failures – HTTP 400.
-- Invalid login credentials – HTTP 401.
-
-## 6. Current Implementation Status
-
-| Feature | Status |
-|---|---|
-| User registration | Completed |
-| User login | Completed |
-| User persistence | Completed |
-| Email validation | Completed |
-| Password validation | Completed |
-| BCrypt password hashing | Completed |
-| Login credential verification | Completed |
-| Duplicate email detection | Completed |
-| Global exception handling | Completed |
-| JWT authentication | Planned |
+| 200 OK | Login or profile retrieval successful |
+| 201 Created | Customer registration successful |
+| 400 Bad Request | Request validation failure |
+| 401 Unauthorized | Invalid credentials, missing, invalid or expired JWT |
+| 403 Forbidden | Authenticated user lacks required permission |
+| 409 Conflict | Email already registered |
 
 ## 7. Technology Stack
 
-- Java
+- Java 21
 - Spring Boot
+- Spring Web
 - Spring Data JPA
+- Spring Security
+- Spring Security Crypto
+- JJWT
 - Hibernate
 - PostgreSQL
 - Jakarta Bean Validation
-- Spring Security Crypto (BCrypt)
+- Maven
 
-## 8. Future Enhancements
+## 8. Testing Scenarios
 
-- JWT-based authentication and authorization.
-- User profile management.
-- Password change and reset functionality.
-- Account management.
+The following scenarios have been tested:
+
+| Scenario | Expected Result |
+|---|---|
+| Valid customer registration | 201 Created |
+| Duplicate email registration | 409 Conflict |
+| Invalid registration fields | 400 Bad Request |
+| Valid customer login | 200 OK with JWT |
+| Incorrect password | 401 Unauthorized |
+| Unregistered email | 401 Unauthorized |
+| Access profile without JWT | 401 Unauthorized |
+| Access profile with valid JWT | 200 OK |
+| Access profile with invalid JWT | 401 Unauthorized |
+| Access profile with expired JWT | 401 Unauthorized |
+
+## 9. Current Implementation Status
+
+Completed:
+- Customer registration
+- Customer login
+- BCrypt password hashing
+- JWT generation and validation
+- Spring Security integration
+- Stateless authentication
+- Protected customer profile API
+- Centralized exception handling
+- API validation and testing
+
+## 10. Future Enhancements
+
+- Refresh token implementation
+- Logout and token revocation strategy
+- Password change and reset functionality
+- Dynamic user roles and role-based authorization
+- Admin authentication
+- Restaurant-owner authentication
+- Additional customer profile management APIs
 
 ---
 
-**Note:** This module will be extended as additional user-management capabilities are implemented.
+**Module Status:** Customer registration, login, JWT authentication and customer profile retrieval implemented and tested.
